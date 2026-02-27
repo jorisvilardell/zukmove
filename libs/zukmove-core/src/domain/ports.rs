@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 use uuid::Uuid;
 
+use super::entities::city_score::CityScore;
 use super::entities::internship::Internship;
+use super::entities::news::News;
 use super::entities::offer::Offer;
 use super::entities::student::Student;
 
@@ -54,4 +56,22 @@ pub trait InternshipRepository: Send + Sync {
 #[async_trait]
 pub trait OfferClient: Send + Sync {
     async fn get_offer_by_id(&self, id: Uuid) -> Result<Offer, DomainError>;
+}
+
+// ─── News Repository (Port) ───
+
+#[async_trait]
+pub trait NewsRepository: Send + Sync {
+    async fn save(&self, news: &News) -> Result<News, DomainError>;
+    async fn get_latest(&self, limit: usize) -> Result<Vec<News>, DomainError>;
+    async fn get_latest_in_city(&self, city: &str, limit: usize) -> Result<Vec<News>, DomainError>;
+}
+
+// ─── City Score Repository (Port) ───
+
+#[async_trait]
+pub trait CityScoreRepository: Send + Sync {
+    async fn get_or_create(&self, city: &str, country: &str) -> Result<CityScore, DomainError>;
+    async fn save(&self, score: &CityScore) -> Result<CityScore, DomainError>;
+    async fn get_top_cities(&self, limit: usize) -> Result<Vec<CityScore>, DomainError>;
 }

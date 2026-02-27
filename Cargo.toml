@@ -4,6 +4,8 @@ members = [
     "libs/zukmove-core",
     "apps/polytech",
     "apps/erasmumu",
+    "apps/mi8",
+    "apps/colporteur",
 ]
 
 [workspace.package]
