@@ -6,13 +6,34 @@ mod tests;
 
 use actix_web::{App, HttpServer, web};
 use mongodb::Client;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 use adapters::mongo_offer::MongoOfferRepository;
+use zukmove_core::domain::entities::offer::{CreateOfferRequest, Offer, UpdateOfferRequest};
 use zukmove_core::domain::ports::OfferRepository;
 
 pub struct AppState {
     pub offer_repo: Box<dyn OfferRepository>,
 }
+
+#[derive(OpenApi)]
+#[openapi(
+    info(
+        title = "Erasmumu API",
+        version = "1.0.0",
+        description = "Service de gestion des offres de stage"
+    ),
+    paths(
+        routes::offer::create_offer,
+        routes::offer::list_offers,
+        routes::offer::get_offer,
+        routes::offer::update_offer,
+        routes::offer::delete_offer,
+    ),
+    components(schemas(Offer, CreateOfferRequest, UpdateOfferRequest,))
+)]
+struct ApiDoc;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
@@ -42,11 +63,20 @@ async fn main() -> std::io::Result<()> {
         offer_repo: Box::new(offer_repo),
     });
 
-    log::info!("Starting Erasmumu service on port {}", port);
+    log::info!(
+        "Starting Erasmumu service on port {} — Swagger UI: http://localhost:{}/swagger-ui/",
+        port,
+        port
+    );
 
     HttpServer::new(move || {
         App::new()
             .app_data(state.clone())
+            // Swagger UI
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-docs/openapi.json", ApiDoc::openapi()),
+            )
             // Offer routes
             .route("/offer", web::post().to(routes::offer::create_offer))
             .route("/offer", web::get().to(routes::offer::list_offers))

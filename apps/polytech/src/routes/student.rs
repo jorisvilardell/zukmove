@@ -8,6 +8,16 @@ use zukmove_core::domain::ports::DomainError;
 
 use crate::AppState;
 
+#[utoipa::path(
+    post,
+    path = "/student",
+    request_body = CreateStudentRequest,
+    responses(
+        (status = 201, description = "Student created", body = Student),
+        (status = 400, description = "Validation error"),
+        (status = 500, description = "Internal error")
+    )
+)]
 pub async fn create_student(
     state: web::Data<AppState>,
     body: web::Json<CreateStudentRequest>,
@@ -25,6 +35,18 @@ pub async fn create_student(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/student/{id}",
+    params(
+        ("id" = Uuid, Path, description = "Student ID")
+    ),
+    responses(
+        (status = 200, description = "Student found", body = Student),
+        (status = 404, description = "Student not found"),
+        (status = 500, description = "Internal error")
+    )
+)]
 pub async fn get_student(state: web::Data<AppState>, path: web::Path<Uuid>) -> HttpResponse {
     let id = path.into_inner();
     match state.student_repo.find_by_id(id).await {
@@ -38,6 +60,18 @@ pub struct StudentQuery {
     pub domain: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/student",
+    params(
+        ("domain" = inline(Option<String>), Query, description = "Filter by domain")
+    ),
+    responses(
+        (status = 200, description = "List of students", body = [Student]),
+        (status = 400, description = "Missing query parameter"),
+        (status = 500, description = "Internal error")
+    )
+)]
 pub async fn list_students(
     state: web::Data<AppState>,
     query: web::Query<StudentQuery>,
@@ -54,6 +88,19 @@ pub async fn list_students(
     }
 }
 
+#[utoipa::path(
+    put,
+    path = "/student/{id}",
+    request_body = UpdateStudentRequest,
+    params(
+        ("id" = Uuid, Path, description = "Student ID")
+    ),
+    responses(
+        (status = 200, description = "Student updated", body = Student),
+        (status = 404, description = "Student not found"),
+        (status = 500, description = "Internal error")
+    )
+)]
 pub async fn update_student(
     state: web::Data<AppState>,
     path: web::Path<Uuid>,
@@ -80,6 +127,18 @@ pub async fn update_student(
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/student/{id}",
+    params(
+        ("id" = Uuid, Path, description = "Student ID")
+    ),
+    responses(
+        (status = 204, description = "Student deleted"),
+        (status = 404, description = "Student not found"),
+        (status = 500, description = "Internal error")
+    )
+)]
 pub async fn delete_student(state: web::Data<AppState>, path: web::Path<Uuid>) -> HttpResponse {
     let id = path.into_inner();
     match state.student_repo.delete(id).await {

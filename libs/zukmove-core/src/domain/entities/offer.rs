@@ -1,8 +1,9 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Offer {
     pub id: Uuid,
     pub title: String,
@@ -15,7 +16,7 @@ pub struct Offer {
     pub available: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CreateOfferRequest {
     pub title: String,
     pub link: String,
@@ -27,7 +28,7 @@ pub struct CreateOfferRequest {
     pub available: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct UpdateOfferRequest {
     pub title: Option<String>,
     pub link: Option<String>,

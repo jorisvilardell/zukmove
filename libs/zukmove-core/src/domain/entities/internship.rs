@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 pub enum InternshipStatus {
     Approved,
     Rejected,
@@ -28,7 +29,7 @@ impl std::str::FromStr for InternshipStatus {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Internship {
     pub id: Uuid,
     pub student_id: Uuid,
@@ -37,7 +38,7 @@ pub struct Internship {
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CreateInternshipRequest {
     pub student_id: Uuid,
     pub offer_id: Uuid,
