@@ -5,6 +5,7 @@ members = [
     "apps/polytech",
     "apps/erasmumu",
     "apps/mi8",
+    "apps/colporteur",
 ]
 
 [workspace.package]
