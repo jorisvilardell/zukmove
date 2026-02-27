@@ -48,11 +48,31 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Failed to connect to PostgreSQL");
 
-    // Run migrations
-    sqlx::query(include_str!("../migrations/001_init.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migrations");
+    // Run migrations (one statement at a time — sqlx doesn't support multi-statement queries)
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS students (
+            id UUID PRIMARY KEY,
+            firstname VARCHAR(255) NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            domain VARCHAR(100) NOT NULL
+        )",
+    )
+    .execute(&pool)
+    .await
+    .expect("Failed to create students table");
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS internships (
+            id UUID PRIMARY KEY,
+            student_id UUID NOT NULL REFERENCES students(id),
+            offer_id UUID NOT NULL,
+            status VARCHAR(20) NOT NULL,
+            message TEXT NOT NULL
+        )",
+    )
+    .execute(&pool)
+    .await
+    .expect("Failed to create internships table");
 
     log::info!("Connected to PostgreSQL and migrations applied");
 
