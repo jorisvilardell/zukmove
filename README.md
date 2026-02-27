@@ -20,18 +20,6 @@ graph LR
     E -->|HTTP GET /offer/:id| G
 ```
 
-## Commits (branch `lab-synchrone-com-polytech-erasmumu`)
-
-| # | Commit | Scope |
-|---|--------|-------|
-| 1 | `feat(core): add domain entities` | Student, Offer, Internship structs + DTOs |
-| 2 | `feat(core): add domain ports` | Repository traits, OfferClient trait, DomainError |
-| 3 | `feat(polytech): add student PostgreSQL adapter` | sqlx runtime queries, SQL migration |
-| 4 | `feat(polytech): add student REST API routes` | CRUD endpoints + error mapping |
-| 5 | `feat(erasmumu): add offer service` | MongoDB adapter (availability filter) + CRUD routes |
-| 6 | `feat(polytech): add internship registration` | InternshipService use case, HTTP client, routes |
-| 7 | `chore: add Docker Compose` | PostgreSQL 16 + MongoDB 7 |
-
 ## How to Run
 
 ```bash
