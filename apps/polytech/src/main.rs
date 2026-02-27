@@ -1,6 +1,9 @@
 mod adapters;
 mod routes;
 
+#[cfg(test)]
+mod tests;
+
 use actix_web::{App, HttpServer, web};
 use sqlx::PgPool;
 
