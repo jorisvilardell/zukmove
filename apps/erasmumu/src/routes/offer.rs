@@ -6,6 +6,16 @@ use zukmove_core::domain::ports::DomainError;
 
 use crate::AppState;
 
+#[utoipa::path(
+    post,
+    path = "/offer",
+    request_body = CreateOfferRequest,
+    responses(
+        (status = 201, description = "Offer created", body = Offer),
+        (status = 400, description = "Validation error"),
+        (status = 500, description = "Internal error")
+    )
+)]
 pub async fn create_offer(
     state: web::Data<AppState>,
     body: web::Json<CreateOfferRequest>,
@@ -28,6 +38,18 @@ pub async fn create_offer(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/offer/{id}",
+    params(
+        ("id" = Uuid, Path, description = "Offer ID")
+    ),
+    responses(
+        (status = 200, description = "Offer found", body = Offer),
+        (status = 404, description = "Offer not found or unavailable"),
+        (status = 500, description = "Internal error")
+    )
+)]
 pub async fn get_offer(state: web::Data<AppState>, path: web::Path<Uuid>) -> HttpResponse {
     let id = path.into_inner();
     match state.offer_repo.find_by_id(id).await {
@@ -42,6 +64,19 @@ pub struct OfferQuery {
     pub city: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/offer",
+    params(
+        ("domain" = inline(Option<String>), Query, description = "Filter by domain"),
+        ("city" = inline(Option<String>), Query, description = "Filter by city")
+    ),
+    responses(
+        (status = 200, description = "List of offers", body = [Offer]),
+        (status = 400, description = "Missing query parameters"),
+        (status = 500, description = "Internal error")
+    )
+)]
 pub async fn list_offers(
     state: web::Data<AppState>,
     query: web::Query<OfferQuery>,
@@ -63,6 +98,19 @@ pub async fn list_offers(
     }
 }
 
+#[utoipa::path(
+    put,
+    path = "/offer/{id}",
+    request_body = UpdateOfferRequest,
+    params(
+        ("id" = Uuid, Path, description = "Offer ID")
+    ),
+    responses(
+        (status = 200, description = "Offer updated", body = Offer),
+        (status = 404, description = "Offer not found"),
+        (status = 500, description = "Internal error")
+    )
+)]
 pub async fn update_offer(
     state: web::Data<AppState>,
     path: web::Path<Uuid>,
@@ -101,6 +149,18 @@ pub async fn update_offer(
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/offer/{id}",
+    params(
+        ("id" = Uuid, Path, description = "Offer ID")
+    ),
+    responses(
+        (status = 204, description = "Offer deleted"),
+        (status = 404, description = "Offer not found"),
+        (status = 500, description = "Internal error")
+    )
+)]
 pub async fn delete_offer(state: web::Data<AppState>, path: web::Path<Uuid>) -> HttpResponse {
     let id = path.into_inner();
     match state.offer_repo.delete(id).await {

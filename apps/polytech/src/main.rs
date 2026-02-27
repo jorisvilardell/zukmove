@@ -12,18 +12,53 @@ use std::sync::Mutex;
 
 use actix_web::{App, HttpServer, web};
 use sqlx::PgPool;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 use adapters::grpc_news_client::GrpcNewsClient;
 use adapters::http_offer_client::HttpOfferClient;
 use adapters::postgres_internship::PostgresInternshipRepository;
 use adapters::postgres_student::PostgresStudentRepository;
 use zukmove_core::app::internship_service::InternshipService;
+use zukmove_core::domain::entities::internship::{
+    CreateInternshipRequest, Internship, InternshipStatus,
+};
+use zukmove_core::domain::entities::student::{
+    CreateStudentRequest, Student, UpdateStudentRequest,
+};
 use zukmove_core::domain::ports::StudentRepository;
 
 pub struct AppState {
     pub student_repo: Box<dyn StudentRepository>,
     pub internship_service: InternshipService,
 }
+
+#[derive(OpenApi)]
+#[openapi(
+    info(
+        title = "Polytech API",
+        version = "1.0.0",
+        description = "Service de gestion des étudiants et stages"
+    ),
+    paths(
+        routes::student::create_student,
+        routes::student::list_students,
+        routes::student::get_student,
+        routes::student::update_student,
+        routes::student::delete_student,
+        routes::internship::create_internship,
+        routes::internship::get_internship,
+    ),
+    components(schemas(
+        Student,
+        CreateStudentRequest,
+        UpdateStudentRequest,
+        Internship,
+        InternshipStatus,
+        CreateInternshipRequest,
+    ))
+)]
+struct ApiDoc;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
@@ -100,12 +135,21 @@ async fn main() -> std::io::Result<()> {
         .expect("Failed to connect to MI8 gRPC service");
     let grpc_client_data = web::Data::new(Mutex::new(grpc_client));
 
-    log::info!("Starting Polytech service on port {}", port);
+    log::info!(
+        "Starting Polytech service on port {} — Swagger UI: http://localhost:{}/swagger-ui/",
+        port,
+        port
+    );
 
     HttpServer::new(move || {
         App::new()
             .app_data(state.clone())
             .app_data(grpc_client_data.clone())
+            // Swagger UI
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-docs/openapi.json", ApiDoc::openapi()),
+            )
             // Student routes
             .route("/student", web::post().to(routes::student::create_student))
             .route("/student", web::get().to(routes::student::list_students))
