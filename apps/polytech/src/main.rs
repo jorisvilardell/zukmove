@@ -10,11 +10,18 @@ mod proto {
 
 use std::sync::Mutex;
 
+mod proto {
+    tonic::include_proto!("mi8");
+}
+
+use std::sync::Mutex;
+
 use actix_web::{App, HttpServer, web};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
+use adapters::grpc_news_client::GrpcNewsClient;
 use adapters::grpc_news_client::GrpcNewsClient;
 use adapters::http_offer_client::HttpOfferClient;
 use adapters::postgres_internship::PostgresInternshipRepository;
@@ -70,6 +77,8 @@ async fn main() -> std::io::Result<()> {
 
     let erasmumu_url =
         std::env::var("ERASMUMU_URL").unwrap_or_else(|_| "http://localhost:8081".to_string());
+
+    let mi8_url = std::env::var("MI8_URL").unwrap_or_else(|_| "http://localhost:50051".to_string());
 
     let mi8_url = std::env::var("MI8_URL").unwrap_or_else(|_| "http://localhost:50051".to_string());
 
@@ -171,6 +180,8 @@ async fn main() -> std::io::Result<()> {
                 "/internship/{id}",
                 web::get().to(routes::internship::get_internship),
             )
+            // News routes (proxy to MI8 via gRPC)
+            .route("/news", web::get().to(routes::news::get_news))
             // News routes (proxy to MI8 via gRPC)
             .route("/news", web::get().to(routes::news::get_news))
     })
