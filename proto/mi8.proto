@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package mi8;
+
+// ─── Messages ───
+
+message News {
+  string id = 1;
+  string name = 2;
+  string source = 3;
+  string date = 4;
+  repeated string tags = 5;
+  string city = 6;
+  string country = 7;
+}
+
+message NewsList {
+  repeated News news = 1;
+}
+
+message GetLatestNewsRequest {
+  int32 limit = 1;
+}
+
+message GetLatestNewsInCityRequest {
+  string city = 1;
+  int32 limit = 2;
+}
+
+message CreateNewsRequest {
+  string name = 1;
+  string source = 2;
+  string date = 3;
+  repeated string tags = 4;
+  string city = 5;
+  string country = 6;
+}
+
+message CityScore {
+  string city = 1;
+  string country = 2;
+  string updated_at = 3;
+  int32 quality_of_life = 4;
+  int32 safety = 5;
+  int32 economy = 6;
+  int32 culture = 7;
+}
+
+message GetCityScoreRequest {
+  string city = 1;
+}
+
+message GetTopCitiesRequest {
+  int32 limit = 1;
+}
+
+message CityScoreList {
+  repeated CityScore scores = 1;
+}
+
+// ─── Service ───
+
+service MI8Service {
+  // Phase 1: Read
+  rpc GetLatestNews(GetLatestNewsRequest) returns (NewsList);
+  rpc GetLatestNewsInCity(GetLatestNewsInCityRequest) returns (NewsList);
+
+  // Phase 2: Write
+  rpc CreateNews(CreateNewsRequest) returns (News);
+
+  // Phase 3: City Scoring
+  rpc GetCityScore(GetCityScoreRequest) returns (CityScore);
+  rpc GetTopCities(GetTopCitiesRequest) returns (CityScoreList);
+}
