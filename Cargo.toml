@@ -1,6 +1,10 @@
 [workspace]
 resolver = "2"
-members = ["libs/zukmove-core"]
+members = [
+    "libs/zukmove-core",
+    "apps/polytech",
+    "apps/erasmumu",
+]
 
 [workspace.package]
 version = "0.1.0"
