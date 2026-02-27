@@ -4,9 +4,16 @@ mod routes;
 #[cfg(test)]
 mod tests;
 
+mod proto {
+    tonic::include_proto!("mi8");
+}
+
+use std::sync::Mutex;
+
 use actix_web::{App, HttpServer, web};
 use sqlx::PgPool;
 
+use adapters::grpc_news_client::GrpcNewsClient;
 use adapters::http_offer_client::HttpOfferClient;
 use adapters::postgres_internship::PostgresInternshipRepository;
 use adapters::postgres_student::PostgresStudentRepository;
@@ -28,6 +35,8 @@ async fn main() -> std::io::Result<()> {
 
     let erasmumu_url =
         std::env::var("ERASMUMU_URL").unwrap_or_else(|_| "http://localhost:8081".to_string());
+
+    let mi8_url = std::env::var("MI8_URL").unwrap_or_else(|_| "http://localhost:50051".to_string());
 
     let port: u16 = std::env::var("PORT")
         .unwrap_or_else(|_| "8080".to_string())
@@ -52,10 +61,8 @@ async fn main() -> std::io::Result<()> {
     let internship_repo = PostgresInternshipRepository::new(pool.clone());
     let offer_client = HttpOfferClient::new(erasmumu_url);
 
-    // One copy of student_repo for direct use in routes, another for internship service
     let student_repo_for_service = PostgresStudentRepository::new(pool.clone());
 
-    // Build use case services
     let internship_service = InternshipService::new(
         Box::new(student_repo_for_service),
         Box::new(internship_repo),
@@ -67,11 +74,18 @@ async fn main() -> std::io::Result<()> {
         internship_service,
     });
 
+    // MI8 gRPC client
+    let grpc_client = GrpcNewsClient::new(mi8_url)
+        .await
+        .expect("Failed to connect to MI8 gRPC service");
+    let grpc_client_data = web::Data::new(Mutex::new(grpc_client));
+
     log::info!("Starting Polytech service on port {}", port);
 
     HttpServer::new(move || {
         App::new()
             .app_data(state.clone())
+            .app_data(grpc_client_data.clone())
             // Student routes
             .route("/student", web::post().to(routes::student::create_student))
             .route("/student", web::get().to(routes::student::list_students))
@@ -93,6 +107,8 @@ async fn main() -> std::io::Result<()> {
                 "/internship/{id}",
                 web::get().to(routes::internship::get_internship),
             )
+            // News routes (proxy to MI8 via gRPC)
+            .route("/news", web::get().to(routes::news::get_news))
     })
     .bind(("0.0.0.0", port))?
     .run()
