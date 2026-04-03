@@ -17,10 +17,41 @@ export interface CityScore {
     culture: number;
 }
 
+export interface News {
+    id: string;
+    name: string;
+    source: string;
+    date: string;
+    tags: string[];
+    city: string;
+    country: string;
+}
+
 export interface AggregatedOffer {
     offer: Offer;
     city_score: CityScore | null;
-    latest_news: any[] | null;
+    latest_news: News[] | null;
+}
+
+export interface CreateStudentRequest {
+    firstname: string;
+    name: string;
+    domain: string;
+}
+
+export interface Student {
+    id: string;
+    firstname: string;
+    name: string;
+    domain: string;
+}
+
+export interface Internship {
+    id: string;
+    student_id: string;
+    offer_id: string;
+    status: 'Approved' | 'Rejected';
+    message: string;
 }
 
 const API_BASE = 'http://localhost:8080';
@@ -37,23 +68,10 @@ export async function fetchOffers(domain?: string, city?: string): Promise<Aggre
     return res.json();
 }
 
-export async function fetchRecommendedOffers(studentId: string): Promise<AggregatedOffer[]> {
-    const res = await fetch(`${API_BASE}/student/${studentId}/recommended-offers`);
-    if (!res.ok) throw new Error('Failed to fetch recommended offers');
+export async function fetchStudent(id: string): Promise<Student> {
+    const res = await fetch(`${API_BASE}/student/${id}`);
+    if (!res.ok) throw new Error('Student not found');
     return res.json();
-}
-
-export interface CreateStudentRequest {
-    firstname: string;
-    name: string;
-    domain: string;
-}
-
-export interface Student {
-    id: string;
-    firstname: string;
-    name: string;
-    domain: string;
 }
 
 export async function createStudent(data: CreateStudentRequest): Promise<Student> {
@@ -68,7 +86,13 @@ export async function createStudent(data: CreateStudentRequest): Promise<Student
     return result;
 }
 
-export async function applyForInternship(studentId: string, offerId: string): Promise<any> {
+export async function fetchRecommendedOffers(studentId: string): Promise<AggregatedOffer[]> {
+    const res = await fetch(`${API_BASE}/student/${studentId}/recommended-offers`);
+    if (!res.ok) throw new Error('Failed to fetch recommended offers');
+    return res.json();
+}
+
+export async function applyForInternship(studentId: string, offerId: string): Promise<Internship> {
     const res = await fetch(`${API_BASE}/internship`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -78,4 +102,14 @@ export async function applyForInternship(studentId: string, offerId: string): Pr
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Application failed');
     return data;
+}
+
+export type SortByScore = 'quality_of_life' | 'safety' | 'economy' | 'culture';
+
+export function sortOffersByScore(offers: AggregatedOffer[], sortBy: SortByScore): AggregatedOffer[] {
+    return [...offers].sort((a, b) => {
+        const scoreA = a.city_score?.[sortBy] ?? 0;
+        const scoreB = b.city_score?.[sortBy] ?? 0;
+        return scoreB - scoreA;
+    });
 }
