@@ -1,5 +1,6 @@
 mod in_memory_internship_repo;
 mod in_memory_student_repo;
+mod mock_intelligence_client;
 mod mock_offer_client;
 
 use actix_web::{App, test, web};
@@ -23,6 +24,7 @@ fn test_app_state() -> web::Data<AppState> {
             Box::new(InMemoryStudentRepository::new()),
             Box::new(InMemoryInternshipRepository::new()),
             Box::new(MockOfferClient::new()),
+            std::sync::Arc::new(mock_intelligence_client::MockIntelligenceClient::new()),
         ),
     })
 }
@@ -273,6 +275,7 @@ async fn test_internship_approved_when_domains_match() {
             Box::new(student_repo_for_service),
             Box::new(internship_repo),
             Box::new(offer_client),
+            std::sync::Arc::new(mock_intelligence_client::MockIntelligenceClient::new()),
         ),
     });
 
@@ -326,6 +329,7 @@ async fn test_internship_rejected_when_domains_dont_match() {
             Box::new(student_repo_for_service),
             Box::new(internship_repo),
             Box::new(offer_client),
+            std::sync::Arc::new(mock_intelligence_client::MockIntelligenceClient::new()),
         ),
     });
 
@@ -381,6 +385,7 @@ async fn test_internship_with_unknown_student_returns_404() {
             Box::new(InMemoryStudentRepository::new()),
             Box::new(InMemoryInternshipRepository::new()),
             Box::new(offer_client),
+            std::sync::Arc::new(mock_intelligence_client::MockIntelligenceClient::new()),
         ),
     });
 

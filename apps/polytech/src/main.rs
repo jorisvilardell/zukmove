@@ -10,6 +10,7 @@ mod proto {
 
 use std::sync::Mutex;
 
+use actix_cors::Cors;
 use actix_web::{App, HttpServer, web};
 use sqlx::PgPool;
 use utoipa::OpenApi;
@@ -20,6 +21,7 @@ use adapters::http_offer_client::HttpOfferClient;
 use adapters::postgres_internship::PostgresInternshipRepository;
 use adapters::postgres_student::PostgresStudentRepository;
 use zukmove_core::app::internship_service::InternshipService;
+use zukmove_core::domain::entities::gateway::AggregatedOffer;
 use zukmove_core::domain::entities::internship::{
     CreateInternshipRequest, Internship, InternshipStatus,
 };
@@ -46,8 +48,10 @@ pub struct AppState {
         routes::student::get_student,
         routes::student::update_student,
         routes::student::delete_student,
+        routes::student::get_recommended_offers,
         routes::internship::create_internship,
         routes::internship::get_internship,
+        routes::offer::get_offers,
     ),
     components(schemas(
         Student,
@@ -56,6 +60,7 @@ pub struct AppState {
         Internship,
         InternshipStatus,
         CreateInternshipRequest,
+        AggregatedOffer,
     ))
 )]
 struct ApiDoc;
@@ -118,22 +123,23 @@ async fn main() -> std::io::Result<()> {
 
     let student_repo_for_service = PostgresStudentRepository::new(pool.clone());
 
+    // MI8 gRPC client
+    let grpc_client = GrpcNewsClient::new(mi8_url)
+        .await
+        .expect("Failed to connect to MI8 gRPC service");
+    let grpc_client_data = web::Data::new(Mutex::new(grpc_client.clone()));
+
     let internship_service = InternshipService::new(
         Box::new(student_repo_for_service),
         Box::new(internship_repo),
         Box::new(offer_client),
+        std::sync::Arc::new(grpc_client.clone()),
     );
 
     let state = web::Data::new(AppState {
         student_repo: Box::new(student_repo),
         internship_service,
     });
-
-    // MI8 gRPC client
-    let grpc_client = GrpcNewsClient::new(mi8_url)
-        .await
-        .expect("Failed to connect to MI8 gRPC service");
-    let grpc_client_data = web::Data::new(Mutex::new(grpc_client));
 
     log::info!(
         "Starting Polytech service on port {} — Swagger UI: http://localhost:{}/swagger-ui/",
@@ -143,6 +149,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
+            .wrap(Cors::permissive())
             .app_data(state.clone())
             .app_data(grpc_client_data.clone())
             // Swagger UI
@@ -162,6 +169,10 @@ async fn main() -> std::io::Result<()> {
                 "/student/{id}",
                 web::delete().to(routes::student::delete_student),
             )
+            .route(
+                "/student/{id}/recommended-offers",
+                web::get().to(routes::student::get_recommended_offers),
+            )
             // Internship routes
             .route(
                 "/internship",
@@ -171,6 +182,8 @@ async fn main() -> std::io::Result<()> {
                 "/internship/{id}",
                 web::get().to(routes::internship::get_internship),
             )
+            // Configured Offer route
+            .route("/offer", web::get().to(routes::offer::get_offers))
             // News routes (proxy to MI8 via gRPC)
             .route("/news", web::get().to(routes::news::get_news))
     })

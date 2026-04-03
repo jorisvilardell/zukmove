@@ -63,6 +63,11 @@ impl OfferRepository for InMemoryOfferRepository {
             .collect())
     }
 
+    async fn find_all(&self) -> Result<Vec<Offer>, DomainError> {
+        let store = self.store.lock().unwrap();
+        Ok(store.values().filter(|o| o.available).cloned().collect())
+    }
+
     async fn update(&self, offer: &Offer) -> Result<Offer, DomainError> {
         let mut store = self.store.lock().unwrap();
         if !store.contains_key(&offer.id) {

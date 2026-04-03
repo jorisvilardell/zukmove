@@ -2,6 +2,7 @@ use actix_web::{HttpResponse, web};
 use std::sync::Mutex;
 
 use crate::adapters::grpc_news_client::GrpcNewsClient;
+use zukmove_core::domain::ports::IntelligenceClient;
 
 #[derive(serde::Deserialize)]
 pub struct NewsQuery {
@@ -15,10 +16,10 @@ pub async fn get_news(
     query: web::Query<NewsQuery>,
 ) -> HttpResponse {
     let limit = query.limit.unwrap_or(10);
-    let mut client = grpc_client.lock().unwrap();
+    let client = grpc_client.lock().unwrap();
 
     let result = if let Some(ref city) = query.city {
-        client.get_latest_news_in_city(city.clone(), limit).await
+        client.get_latest_news_in_city(city, limit).await
     } else {
         client.get_latest_news(limit).await
     };

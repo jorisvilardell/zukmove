@@ -163,3 +163,30 @@ pub fn domain_error_to_response(err: DomainError) -> HttpResponse {
         }
     }
 }
+
+#[utoipa::path(
+    get,
+    path = "/student/{id}/recommended-offers",
+    params(
+        ("id" = Uuid, Path, description = "Student ID")
+    ),
+    responses(
+        (status = 200, description = "Recommended offers sorted by city score", body = Vec<zukmove_core::domain::entities::gateway::AggregatedOffer>),
+        (status = 404, description = "Student not found"),
+        (status = 500, description = "Internal error")
+    )
+)]
+pub async fn get_recommended_offers(
+    state: web::Data<AppState>,
+    path: web::Path<Uuid>,
+) -> HttpResponse {
+    let id = path.into_inner();
+    match state
+        .internship_service
+        .get_recommended_offers_for_student(id)
+        .await
+    {
+        Ok(offers) => HttpResponse::Ok().json(offers),
+        Err(e) => domain_error_to_response(e),
+    }
+}

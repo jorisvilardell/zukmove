@@ -323,12 +323,32 @@ async fn test_delete_offer_not_found() {
 // ─── GET /offer without query params ───
 
 #[actix_web::test]
-async fn test_list_offers_without_filter_returns_400() {
+async fn test_list_offers_without_filter_returns_all_offers() {
     let state = test_app_state();
     let app = test::init_service(test_app(state)).await;
+
+    // Create an offer to ensure the list is not empty
+    let payload = json!({
+        "title": "Stage",
+        "link": "http://example.com",
+        "city": "Paris",
+        "domain": "IT",
+        "salary": 1000.0,
+        "start_date": "2026-06-01",
+        "end_date": "2026-12-01",
+        "available": true
+    });
+    let req = test::TestRequest::post()
+        .uri("/offer")
+        .set_json(&payload)
+        .to_request();
+    test::call_service(&app, req).await;
 
     let req = test::TestRequest::get().uri("/offer").to_request();
     let resp = test::call_service(&app, req).await;
 
-    assert_eq!(resp.status(), 400);
+    assert_eq!(resp.status(), 200);
+
+    let body: Vec<Offer> = test::read_body_json(resp).await;
+    assert_eq!(body.len(), 1);
 }
