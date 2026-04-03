@@ -23,7 +23,7 @@ export interface AggregatedOffer {
     latest_news: any[] | null;
 }
 
-const API_BASE = '/api';
+const API_BASE = 'http://localhost:8080';
 
 export async function fetchOffers(domain?: string, city?: string): Promise<AggregatedOffer[]> {
     const params = new URLSearchParams();
