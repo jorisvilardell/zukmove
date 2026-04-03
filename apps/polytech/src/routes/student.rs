@@ -30,7 +30,32 @@ pub async fn create_student(
     };
 
     match state.student_repo.save(&student).await {
-        Ok(s) => HttpResponse::Created().json(s),
+        Ok(s) => {
+            // Publish student.registered event
+            if let Some(ref channel) = state.rabbitmq_channel {
+                let event = serde_json::json!({
+                    "studentId": s.id.to_string(),
+                    "name": format!("{} {}", s.firstname, s.name),
+                    "domain": s.domain,
+                    "createdAt": chrono::Utc::now().format("%Y-%m-%d").to_string(),
+                });
+                if let Ok(payload) = serde_json::to_vec(&event) {
+                    let _ = channel
+                        .basic_publish(
+                            "zukmove.events",
+                            "student.registered",
+                            lapin::options::BasicPublishOptions::default(),
+                            &payload,
+                            lapin::BasicProperties::default()
+                                .with_content_type("application/json".into())
+                                .with_delivery_mode(2),
+                        )
+                        .await;
+                    log::info!("Published student.registered event for {}", s.id);
+                }
+            }
+            HttpResponse::Created().json(s)
+        }
         Err(e) => domain_error_to_response(e),
     }
 }

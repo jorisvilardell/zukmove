@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
-import { Compass, UserCircle, LogOut, LogIn, Settings } from 'lucide-react';
+import { Compass, UserCircle, LogOut, Settings } from 'lucide-react';
 import OffersExplorer from '@/pages/OffersExplorer';
 import StudentLogin from '@/pages/StudentLogin';
 import StudentDashboard from '@/pages/StudentDashboard';
@@ -28,15 +28,8 @@ function App() {
               Explorer
             </NavLink>
 
-            {student ? (
+            {student && (
               <>
-                <NavLink
-                  to="/dashboard"
-                  className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-                >
-                  <UserCircle size={18} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
-                  Dashboard
-                </NavLink>
                 <NavLink
                   to="/preferences"
                   className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
@@ -44,8 +37,7 @@ function App() {
                   <Settings size={18} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
                   Preferences
                 </NavLink>
-
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginLeft: '1rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginLeft: '0.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
                   <span className="badge">{student.firstname} {student.name}</span>
                   <button
                     onClick={logout}
@@ -56,14 +48,6 @@ function App() {
                   </button>
                 </span>
               </>
-            ) : (
-              <NavLink
-                to="/login"
-                className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-              >
-                <LogIn size={18} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
-                Login
-              </NavLink>
             )}
           </nav>
         </header>

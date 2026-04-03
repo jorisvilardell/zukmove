@@ -58,6 +58,19 @@ message CityScoreList {
   repeated CityScore scores = 1;
 }
 
+// ─── City Statistics ───
+
+message CityStats {
+  string city = 1;
+  int32 total_offers = 2;
+  map<string, int32> offers_by_domain = 3;
+  string last_offer_date = 4;
+}
+
+message GetCityStatsRequest {
+  string city = 1;
+}
+
 // ─── Service ───
 
 service MI8Service {
@@ -71,4 +84,7 @@ service MI8Service {
   // Phase 3: City Scoring
   rpc GetCityScore(GetCityScoreRequest) returns (CityScore);
   rpc GetTopCities(GetTopCitiesRequest) returns (CityScoreList);
+
+  // Phase 4: City Statistics
+  rpc GetCityStats(GetCityStatsRequest) returns (CityStats);
 }

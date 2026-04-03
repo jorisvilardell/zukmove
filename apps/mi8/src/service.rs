@@ -1,27 +1,39 @@
+use std::collections::HashMap;
 use tonic::{Request, Response, Status};
 
 use crate::proto::mi8_service_server::Mi8Service;
 use crate::proto::{
-    CityScore as ProtoCityScore, CityScoreList, CreateNewsRequest, GetCityScoreRequest,
-    GetLatestNewsInCityRequest, GetLatestNewsRequest, GetTopCitiesRequest, News as ProtoNews,
-    NewsList,
+    CityScore as ProtoCityScore, CityScoreList, CityStats as ProtoCityStats, CreateNewsRequest,
+    GetCityScoreRequest, GetCityStatsRequest, GetLatestNewsInCityRequest, GetLatestNewsRequest,
+    GetTopCitiesRequest, News as ProtoNews, NewsList,
 };
 use zukmove_core::domain::entities::news::News;
 use zukmove_core::domain::ports::{CityScoreRepository, NewsRepository};
 
+#[derive(serde::Deserialize, Default)]
+struct CityStatsData {
+    city: String,
+    total_offers: i32,
+    offers_by_domain: HashMap<String, i32>,
+    last_offer_date: String,
+}
+
 pub struct Mi8ServiceImpl {
     news_repo: Box<dyn NewsRepository>,
     city_score_repo: Box<dyn CityScoreRepository>,
+    redis_client: redis::Client,
 }
 
 impl Mi8ServiceImpl {
     pub fn new(
         news_repo: Box<dyn NewsRepository>,
         city_score_repo: Box<dyn CityScoreRepository>,
+        redis_client: redis::Client,
     ) -> Self {
         Self {
             news_repo,
             city_score_repo,
+            redis_client,
         }
     }
 }
@@ -180,6 +192,43 @@ impl Mi8Service for Mi8ServiceImpl {
 
         Ok(Response::new(CityScoreList {
             scores: scores.iter().map(domain_score_to_proto).collect(),
+        }))
+    }
+
+    async fn get_city_stats(
+        &self,
+        request: Request<GetCityStatsRequest>,
+    ) -> Result<Response<ProtoCityStats>, Status> {
+        let city = request.into_inner().city;
+        if city.is_empty() {
+            return Err(Status::invalid_argument("city is required"));
+        }
+
+        let mut conn = self
+            .redis_client
+            .get_multiplexed_async_connection()
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        let key = format!("citystats:data:{}", city.to_lowercase());
+        let json: Option<String> = redis::AsyncCommands::get(&mut conn, &key)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        let stats: CityStatsData = if let Some(json) = json {
+            serde_json::from_str(&json).map_err(|e| Status::internal(e.to_string()))?
+        } else {
+            CityStatsData {
+                city: city.clone(),
+                ..Default::default()
+            }
+        };
+
+        Ok(Response::new(ProtoCityStats {
+            city: stats.city,
+            total_offers: stats.total_offers,
+            offers_by_domain: stats.offers_by_domain,
+            last_offer_date: stats.last_offer_date,
         }))
     }
 }
