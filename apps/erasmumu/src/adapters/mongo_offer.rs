@@ -93,6 +93,28 @@ impl OfferRepository for MongoOfferRepository {
         Ok(offers)
     }
 
+    async fn find_all(&self) -> Result<Vec<Offer>, DomainError> {
+        let filter = doc! { "available": true };
+        let mut cursor = self
+            .collection
+            .find(filter)
+            .await
+            .map_err(|e| DomainError::InfrastructureError(e.to_string()))?;
+
+        let mut offers = Vec::new();
+        while cursor
+            .advance()
+            .await
+            .map_err(|e| DomainError::InfrastructureError(e.to_string()))?
+        {
+            let offer = cursor
+                .deserialize_current()
+                .map_err(|e| DomainError::InfrastructureError(e.to_string()))?;
+            offers.push(offer);
+        }
+        Ok(offers)
+    }
+
     async fn update(&self, offer: &Offer) -> Result<Offer, DomainError> {
         let id_bson = uuid_to_bson(offer.id)?;
         let filter = doc! { "id": id_bson };
@@ -133,5 +155,8 @@ impl OfferRepository for MongoOfferRepository {
 }
 
 fn uuid_to_bson(id: Uuid) -> Result<Bson, DomainError> {
-    to_bson(&id).map_err(|e| DomainError::InfrastructureError(e.to_string()))
+    Ok(Bson::Binary(mongodb::bson::Binary {
+        subtype: mongodb::bson::spec::BinarySubtype::Generic,
+        bytes: id.into_bytes().to_vec(),
+    }))
 }

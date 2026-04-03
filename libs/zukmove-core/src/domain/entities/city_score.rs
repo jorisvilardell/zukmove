@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 /// Scores pour une ville, calculés à partir des tags des actualités.
 /// Chaque métrique démarre à 1000 et ne descend jamais en dessous de 0.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CityScore {
     pub city: String,
     pub country: String,

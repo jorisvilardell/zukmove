@@ -26,6 +26,7 @@ tonic-prost = "0.14"
 prost = "0.14"
 utoipa = "5"
 utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
+actix-cors = "0.7.1"
 
 [build-dependencies]
 tonic-prost-build = "0.14"

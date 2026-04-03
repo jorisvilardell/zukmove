@@ -39,6 +39,7 @@ pub trait OfferRepository: Send + Sync {
     async fn find_by_id(&self, id: Uuid) -> Result<Offer, DomainError>;
     async fn find_by_domain(&self, domain: &str) -> Result<Vec<Offer>, DomainError>;
     async fn find_by_city(&self, city: &str) -> Result<Vec<Offer>, DomainError>;
+    async fn find_all(&self) -> Result<Vec<Offer>, DomainError>;
     async fn update(&self, offer: &Offer) -> Result<Offer, DomainError>;
     async fn delete(&self, id: Uuid) -> Result<(), DomainError>;
 }
@@ -56,6 +57,24 @@ pub trait InternshipRepository: Send + Sync {
 #[async_trait]
 pub trait OfferClient: Send + Sync {
     async fn get_offer_by_id(&self, id: Uuid) -> Result<Offer, DomainError>;
+    async fn search_offers(
+        &self,
+        domain: Option<String>,
+        city: Option<String>,
+    ) -> Result<Vec<Offer>, DomainError>;
+}
+
+// ─── Intelligence Client (Port sortant pour communication avec MI8) ───
+
+#[async_trait]
+pub trait IntelligenceClient: Send + Sync {
+    async fn get_latest_news(&self, limit: i32) -> Result<Vec<News>, DomainError>;
+    async fn get_latest_news_in_city(
+        &self,
+        city: &str,
+        limit: i32,
+    ) -> Result<Vec<News>, DomainError>;
+    async fn get_city_score(&self, city: &str) -> Result<Option<CityScore>, DomainError>;
 }
 
 // ─── News Repository (Port) ───

@@ -4,6 +4,7 @@ mod routes;
 #[cfg(test)]
 mod tests;
 
+use actix_cors::Cors;
 use actix_web::{App, HttpServer, web};
 use mongodb::Client;
 use utoipa::OpenApi;
@@ -71,6 +72,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
+            .wrap(Cors::permissive())
             .app_data(state.clone())
             // Swagger UI
             .service(

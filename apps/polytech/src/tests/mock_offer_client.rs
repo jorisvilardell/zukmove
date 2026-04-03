@@ -36,6 +36,23 @@ impl OfferClient for MockOfferClient {
             .cloned()
             .ok_or_else(|| DomainError::NotFound(format!("Offer with id {} not found", id)))
     }
+    async fn search_offers(
+        &self,
+        domain: Option<String>,
+        city: Option<String>,
+    ) -> Result<Vec<Offer>, DomainError> {
+        let store = self.offers.lock().unwrap();
+        let mut results: Vec<Offer> = store.values().cloned().collect();
+
+        if let Some(d) = domain {
+            results.retain(|o| o.domain == d);
+        }
+        if let Some(c) = city {
+            results.retain(|o| o.city == c);
+        }
+
+        Ok(results)
+    }
 }
 
 /// Helper to create a test offer.

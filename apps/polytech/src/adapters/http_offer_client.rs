@@ -22,12 +22,10 @@ impl HttpOfferClient {
 impl OfferClient for HttpOfferClient {
     async fn get_offer_by_id(&self, id: Uuid) -> Result<Offer, DomainError> {
         let url = format!("{}/offer/{}", self.base_url, id);
-        let response = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| DomainError::InfrastructureError(format!("HTTP request failed: {}", e)))?;
+        let response =
+            self.client.get(&url).send().await.map_err(|e| {
+                DomainError::InfrastructureError(format!("HTTP request failed: {}", e))
+            })?;
 
         if response.status() == reqwest::StatusCode::NOT_FOUND {
             return Err(DomainError::NotFound(format!(
@@ -47,5 +45,40 @@ impl OfferClient for HttpOfferClient {
             .json::<Offer>()
             .await
             .map_err(|e| DomainError::InfrastructureError(format!("Failed to parse offer: {}", e)))
+    }
+    async fn search_offers(
+        &self,
+        domain: Option<String>,
+        city: Option<String>,
+    ) -> Result<Vec<Offer>, DomainError> {
+        let url = format!("{}/offer", self.base_url);
+
+        let mut query = Vec::new();
+        if let Some(d) = domain {
+            query.push(("domain", d));
+        }
+        if let Some(c) = city {
+            query.push(("city", c));
+        }
+
+        let response = self
+            .client
+            .get(&url)
+            .query(&query)
+            .send()
+            .await
+            .map_err(|e| DomainError::InfrastructureError(format!("HTTP request failed: {}", e)))?;
+
+        if !response.status().is_success() {
+            return Err(DomainError::InfrastructureError(format!(
+                "Erasmumu returned status {}",
+                response.status()
+            )));
+        }
+
+        response
+            .json::<Vec<Offer>>()
+            .await
+            .map_err(|e| DomainError::InfrastructureError(format!("Failed to parse offers: {}", e)))
     }
 }

@@ -92,9 +92,10 @@ pub async fn list_offers(
             Err(e) => domain_error_to_response(e),
         }
     } else {
-        HttpResponse::BadRequest().json(serde_json::json!({
-            "error": "Query parameter 'domain' or 'city' is required"
-        }))
+        match state.offer_repo.find_all().await {
+            Ok(offers) => HttpResponse::Ok().json(offers),
+            Err(e) => domain_error_to_response(e),
+        }
     }
 }
 
