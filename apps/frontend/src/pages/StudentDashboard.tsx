@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { fetchRecommendedOffers, fetchStudent, createStudent, applyForInternship, sortOffersByScore, type AggregatedOffer, type SortByScore } from '@/lib/api';
+import { useEffect, useState } from 'react';
+import { fetchRecommendedOffers, applyForInternship, sortOffersByScore, type AggregatedOffer, type SortByScore, type News } from '@/lib/api';
 import OfferCard from '@/components/OfferCard';
-import { UserCircle, UserPlus, LogIn, ArrowDownWideNarrow } from 'lucide-react';
+import { UserCircle, ArrowDownWideNarrow, Bell, BellOff, Newspaper } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
+import { Navigate } from 'react-router-dom';
 
 const SORT_OPTIONS: { value: SortByScore | ''; label: string }[] = [
     { value: '', label: 'Default' },
@@ -12,78 +13,55 @@ const SORT_OPTIONS: { value: SortByScore | ''; label: string }[] = [
     { value: 'culture', label: 'Culture' },
 ];
 
+function OfferSkeleton() {
+    return (
+        <div className="glass-panel skeleton-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ flex: 1 }}>
+                    <div className="skeleton" style={{ height: '1.25rem', width: '70%', marginBottom: '0.5rem' }} />
+                    <div className="skeleton" style={{ height: '0.875rem', width: '40%' }} />
+                </div>
+                <div className="skeleton" style={{ height: '1.5rem', width: '4rem', borderRadius: '999px' }} />
+            </div>
+            <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-md)' }}>
+                <div className="skeleton" style={{ height: '6px', width: '100%', marginBottom: '0.5rem' }} />
+                <div className="skeleton" style={{ height: '6px', width: '100%', marginBottom: '0.5rem' }} />
+                <div className="skeleton" style={{ height: '6px', width: '100%' }} />
+            </div>
+        </div>
+    );
+}
+
 export default function StudentDashboard() {
     const student = useAuthStore((s) => s.student);
-    const login = useAuthStore((s) => s.login);
+    const seenNewsIds = useAuthStore((s) => s.seenNewsIds);
+    const markNewsSeen = useAuthStore((s) => s.markNewsSeen);
 
-    const [loginId, setLoginId] = useState('');
-    const [loginLoading, setLoginLoading] = useState(false);
     const [rawOffers, setRawOffers] = useState<AggregatedOffer[]>([]);
     const [sortBy, setSortBy] = useState<SortByScore | ''>('');
-    const [hasScanned, setHasScanned] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [applyingId, setApplyingId] = useState<string | null>(null);
-
-    // Create student form
-    const [showCreateForm, setShowCreateForm] = useState(false);
-    const [firstname, setFirstname] = useState('');
-    const [name, setName] = useState('');
-    const [domain, setDomain] = useState('');
-    const [creating, setCreating] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
 
     const offers = sortBy ? sortOffersByScore(rawOffers, sortBy) : rawOffers;
 
-    const showToast = (message: string, type: 'success' | 'error') => {
-        setToast({ message, type });
-        setTimeout(() => setToast(null), 5000);
-    };
+    // Collect all news as notifications
+    const allNews: (News & { offerTitle: string })[] = rawOffers.flatMap((agg) =>
+        (agg.latest_news ?? []).map((n) => ({ ...n, offerTitle: agg.offer.title }))
+    );
+    const unseenCount = allNews.filter((n) => !seenNewsIds.includes(n.id)).length;
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!loginId.trim()) return;
+    useEffect(() => {
+        if (student) loadRecommendations();
+    }, [student?.id]);
 
-        setLoginLoading(true);
-        try {
-            const studentData = await fetchStudent(loginId.trim());
-            login(studentData);
-            showToast(`Welcome back, ${studentData.firstname}!`, 'success');
-        } catch {
-            showToast('Student not found. Check your ID or create an account.', 'error');
-        } finally {
-            setLoginLoading(false);
-        }
-    };
-
-    const handleCreate = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!firstname.trim() || !name.trim() || !domain.trim()) return;
-
-        setCreating(true);
-        try {
-            const created = await createStudent({ firstname: firstname.trim(), name: name.trim(), domain: domain.trim() });
-            login(created);
-            setShowCreateForm(false);
-            setFirstname('');
-            setName('');
-            setDomain('');
-            showToast(`Account created! Your ID: ${created.id}`, 'success');
-        } catch (err: any) {
-            showToast(err.message, 'error');
-        } finally {
-            setCreating(false);
-        }
-    };
-
-    const handleLoadRecommendations = async () => {
+    const loadRecommendations = async () => {
         if (!student) return;
-
         setLoading(true);
         setError(null);
-        setHasScanned(true);
-
         try {
             const data = await fetchRecommendedOffers(student.id);
             setRawOffers(data);
@@ -93,6 +71,11 @@ export default function StudentDashboard() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const showToast = (message: string, type: 'success' | 'error') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 5000);
     };
 
     const handleApply = async (offerId: string) => {
@@ -111,84 +94,28 @@ export default function StudentDashboard() {
         }
     };
 
-    // --- Not logged in ---
-    if (!student) {
-        return (
-            <div>
-                <div className="glass-panel" style={{ padding: '2rem', maxWidth: '500px', margin: '0 auto', textAlign: 'center' }}>
-                    <UserCircle size={48} color="var(--primary)" style={{ marginBottom: '1rem' }} />
-                    <h2>Student Login</h2>
-                    <p style={{ marginBottom: '1.5rem' }}>Enter your Student ID to log in, or create a new account.</p>
+    const handleMarkAllRead = () => {
+        markNewsSeen(allNews.map((n) => n.id));
+    };
 
-                    <form onSubmit={handleLogin} style={{ display: 'flex', gap: '1rem' }}>
-                        <input
-                            type="text"
-                            className="input-field"
-                            placeholder="Your Student ID (UUID)"
-                            value={loginId}
-                            onChange={(e) => setLoginId(e.target.value)}
-                            style={{ flex: 1, marginBottom: 0 }}
-                            autoFocus
-                        />
-                        <button type="submit" className="btn" disabled={!loginId.trim() || loginLoading}>
-                            {loginLoading ? <div className="loader" /> : <><LogIn size={18} /> Login</>}
-                        </button>
-                    </form>
+    if (!student) return <Navigate to="/login" replace />;
 
-                    <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
-                        <button
-                            type="button"
-                            className="btn btn-secondary"
-                            onClick={() => setShowCreateForm(!showCreateForm)}
-                        >
-                            <UserPlus size={18} />
-                            {showCreateForm ? 'Cancel' : 'Create New Account'}
-                        </button>
-                    </div>
-
-                    {showCreateForm && (
-                        <form onSubmit={handleCreate} style={{ marginTop: '1.5rem', textAlign: 'left' }}>
-                            <div className="input-group">
-                                <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>First Name</label>
-                                <input type="text" className="input-field" placeholder="Jean" value={firstname} onChange={(e) => setFirstname(e.target.value)} />
-                            </div>
-                            <div className="input-group">
-                                <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Last Name</label>
-                                <input type="text" className="input-field" placeholder="Dupont" value={name} onChange={(e) => setName(e.target.value)} />
-                            </div>
-                            <div className="input-group">
-                                <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Domain</label>
-                                <input type="text" className="input-field" placeholder="e.g. Computer Science" value={domain} onChange={(e) => setDomain(e.target.value)} />
-                            </div>
-                            <button type="submit" className="btn btn-success" disabled={creating || !firstname.trim() || !name.trim() || !domain.trim()} style={{ width: '100%' }}>
-                                {creating ? <div className="loader" /> : 'Create & Login'}
-                            </button>
-                        </form>
-                    )}
-                </div>
-
-                {toast && (
-                    <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>
-                )}
-            </div>
-        );
-    }
-
-    // --- Logged in ---
     return (
         <div>
             {/* Student Profile Card */}
             <div className="glass-panel" style={{ padding: '2rem', maxWidth: '600px', margin: '0 auto 2rem auto', textAlign: 'center' }}>
                 <UserCircle size={48} color="var(--primary)" style={{ marginBottom: '1rem' }} />
                 <h2 style={{ marginBottom: '0.25rem' }}>{student.firstname} {student.name}</h2>
-                <p style={{ fontSize: '0.8rem', marginBottom: '0.75rem' }}>ID: <code style={{ fontSize: '0.75rem', background: 'rgba(0,0,0,0.3)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>{student.id}</code></p>
+                <p style={{ fontSize: '0.8rem', marginBottom: '0.75rem' }}>
+                    ID: <code style={{ fontSize: '0.75rem', background: 'rgba(0,0,0,0.3)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>{student.id}</code>
+                </p>
                 {student.domain && <span className="badge">{student.domain}</span>}
             </div>
 
-            {/* Recommendations Controls */}
+            {/* Controls */}
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'center', marginBottom: '2rem', flexWrap: 'wrap' }}>
-                <button className="btn" onClick={handleLoadRecommendations} disabled={loading}>
-                    {loading ? <div className="loader" /> : 'Get Recommendations'}
+                <button className="btn" onClick={loadRecommendations} disabled={loading}>
+                    {loading ? <div className="loader" /> : 'Refresh Recommendations'}
                 </button>
 
                 {rawOffers.length > 0 && (
@@ -206,18 +133,79 @@ export default function StudentDashboard() {
                         </select>
                     </div>
                 )}
+
+                {allNews.length > 0 && (
+                    <button
+                        className="btn btn-secondary"
+                        onClick={() => setShowNotifications(!showNotifications)}
+                        style={{ position: 'relative' }}
+                    >
+                        {showNotifications ? <BellOff size={18} /> : <Bell size={18} />}
+                        Alerts
+                        {unseenCount > 0 && (
+                            <span className="notification-badge">{unseenCount}</span>
+                        )}
+                    </button>
+                )}
             </div>
 
+            {/* Notifications Panel */}
+            {showNotifications && allNews.length > 0 && (
+                <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', maxWidth: '700px', margin: '0 auto 2rem auto' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem' }}>
+                            <Bell size={18} color="var(--primary)" /> Alerts
+                            {unseenCount > 0 && <span className="notification-badge" style={{ position: 'static' }}>{unseenCount} new</span>}
+                        </h3>
+                        {unseenCount > 0 && (
+                            <button className="btn btn-secondary" onClick={handleMarkAllRead} style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
+                                Mark all read
+                            </button>
+                        )}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '300px', overflowY: 'auto' }}>
+                        {allNews.map((news) => {
+                            const isNew = !seenNewsIds.includes(news.id);
+                            return (
+                                <div
+                                    key={news.id}
+                                    style={{
+                                        padding: '0.75rem 1rem',
+                                        background: isNew ? 'rgba(99,102,241,0.1)' : 'rgba(0,0,0,0.15)',
+                                        borderRadius: 'var(--radius-sm)',
+                                        borderLeft: isNew ? '3px solid var(--primary)' : '3px solid transparent',
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-main)' }}>
+                                        <Newspaper size={14} color="var(--primary)" />
+                                        {news.name}
+                                    </div>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                        {news.source} — {news.date} — Related to: {news.offerTitle}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             {/* Results */}
-            {error ? (
+            {loading ? (
+                <div className="grid-cards">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <OfferSkeleton key={i} />
+                    ))}
+                </div>
+            ) : error ? (
                 <div style={{ color: 'var(--danger)', textAlign: 'center', padding: '2rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-md)' }}>
                     {error}
                 </div>
-            ) : hasScanned && !loading && offers.length === 0 ? (
+            ) : offers.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)', background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)' }}>
                     No recommendations found for your domain.
                 </div>
-            ) : offers.length > 0 ? (
+            ) : (
                 <div>
                     <h3 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>
                         Recommended for you
@@ -234,7 +222,7 @@ export default function StudentDashboard() {
                         ))}
                     </div>
                 </div>
-            ) : null}
+            )}
 
             {toast && (
                 <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>
