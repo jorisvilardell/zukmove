@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { fetchOffers, type AggregatedOffer, applyForInternship } from '@/lib/api';
 import OfferCard from '@/components/OfferCard';
+import { useAuthStore } from '@/store/auth';
 
 export default function OffersExplorer() {
+    const student = useAuthStore((s) => s.student);
     const [offers, setOffers] = useState<AggregatedOffer[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -33,12 +35,15 @@ export default function OffersExplorer() {
     };
 
     const handleApply = async (offerId: string) => {
-        const studentId = prompt("Please enter your Student ID (UUID) to apply:");
-        if (!studentId) return;
+        if (!student) {
+            setToast({ message: 'Please login first in the Dashboard tab.', type: 'error' });
+            setTimeout(() => setToast(null), 5000);
+            return;
+        }
 
         setApplyingId(offerId);
         try {
-            const result = await applyForInternship(studentId, offerId);
+            const result = await applyForInternship(student.id, offerId);
             setToast({
                 message: `Application ${result.status}! ${result.message}`,
                 type: result.status === 'Approved' ? 'success' : 'error'
