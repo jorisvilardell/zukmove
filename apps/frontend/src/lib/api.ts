@@ -43,6 +43,31 @@ export async function fetchRecommendedOffers(studentId: string): Promise<Aggrega
     return res.json();
 }
 
+export interface CreateStudentRequest {
+    firstname: string;
+    name: string;
+    domain: string;
+}
+
+export interface Student {
+    id: string;
+    firstname: string;
+    name: string;
+    domain: string;
+}
+
+export async function createStudent(data: CreateStudentRequest): Promise<Student> {
+    const res = await fetch(`${API_BASE}/student`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Failed to create student');
+    return result;
+}
+
 export async function applyForInternship(studentId: string, offerId: string): Promise<any> {
     const res = await fetch(`${API_BASE}/internship`, {
         method: 'POST',

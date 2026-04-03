@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { fetchRecommendedOffers, type AggregatedOffer, applyForInternship } from '@/lib/api';
+import { fetchRecommendedOffers, createStudent, type AggregatedOffer } from '@/lib/api';
+import { applyForInternship } from '@/lib/api';
 import OfferCard from '@/components/OfferCard';
-import { UserCircle } from 'lucide-react';
+import { UserCircle, UserPlus } from 'lucide-react';
 
 export default function StudentDashboard() {
     const [studentId, setStudentId] = useState('');
@@ -13,6 +14,35 @@ export default function StudentDashboard() {
     // Toast State
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [applyingId, setApplyingId] = useState<string | null>(null);
+
+    // Create student form
+    const [showCreateForm, setShowCreateForm] = useState(false);
+    const [firstname, setFirstname] = useState('');
+    const [name, setName] = useState('');
+    const [domain, setDomain] = useState('');
+    const [creating, setCreating] = useState(false);
+
+    const handleCreate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!firstname.trim() || !name.trim() || !domain.trim()) return;
+
+        setCreating(true);
+        try {
+            const student = await createStudent({ firstname: firstname.trim(), name: name.trim(), domain: domain.trim() });
+            setStudentId(student.id);
+            setShowCreateForm(false);
+            setFirstname('');
+            setName('');
+            setDomain('');
+            setToast({ message: `Student created! ID: ${student.id}`, type: 'success' });
+            setTimeout(() => setToast(null), 5000);
+        } catch (err: any) {
+            setToast({ message: err.message, type: 'error' });
+            setTimeout(() => setToast(null), 5000);
+        } finally {
+            setCreating(false);
+        }
+    };
 
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -70,6 +100,60 @@ export default function StudentDashboard() {
                         {loading ? <div className="loader" /> : 'Get Recommendations'}
                     </button>
                 </form>
+
+                <div style={{ marginTop: '1rem' }}>
+                    <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => setShowCreateForm(!showCreateForm)}
+                    >
+                        <UserPlus size={18} />
+                        {showCreateForm ? 'Cancel' : 'New Student'}
+                    </button>
+                </div>
+
+                {showCreateForm && (
+                    <form onSubmit={handleCreate} style={{ marginTop: '1.5rem', textAlign: 'left' }}>
+                        <div className="input-group">
+                            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>First Name</label>
+                            <input
+                                type="text"
+                                className="input-field"
+                                placeholder="Jean"
+                                value={firstname}
+                                onChange={(e) => setFirstname(e.target.value)}
+                            />
+                        </div>
+                        <div className="input-group">
+                            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Last Name</label>
+                            <input
+                                type="text"
+                                className="input-field"
+                                placeholder="Dupont"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                            />
+                        </div>
+                        <div className="input-group">
+                            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Domain</label>
+                            <input
+                                type="text"
+                                className="input-field"
+                                placeholder="e.g. Computer Science"
+                                value={domain}
+                                onChange={(e) => setDomain(e.target.value)}
+                            />
+                        </div>
+                        <button
+                            type="submit"
+                            className="btn btn-success"
+                            disabled={creating || !firstname.trim() || !name.trim() || !domain.trim()}
+                            style={{ width: '100%' }}
+                        >
+                            {creating ? <div className="loader" /> : 'Create Student'}
+                        </button>
+                    </form>
+                )}
             </div>
 
             {error ? (
