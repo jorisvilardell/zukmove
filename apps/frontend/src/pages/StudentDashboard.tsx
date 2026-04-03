@@ -1,16 +1,25 @@
 import { useState } from 'react';
-import { fetchRecommendedOffers, createStudent, type AggregatedOffer, type Student } from '@/lib/api';
-import { applyForInternship } from '@/lib/api';
+import { fetchRecommendedOffers, fetchStudent, createStudent, applyForInternship, sortOffersByScore, type AggregatedOffer, type SortByScore } from '@/lib/api';
 import OfferCard from '@/components/OfferCard';
-import { UserCircle, UserPlus, LogIn } from 'lucide-react';
+import { UserCircle, UserPlus, LogIn, ArrowDownWideNarrow } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
+
+const SORT_OPTIONS: { value: SortByScore | ''; label: string }[] = [
+    { value: '', label: 'Default' },
+    { value: 'safety', label: 'Safety' },
+    { value: 'economy', label: 'Economy' },
+    { value: 'quality_of_life', label: 'Quality of Life' },
+    { value: 'culture', label: 'Culture' },
+];
 
 export default function StudentDashboard() {
     const student = useAuthStore((s) => s.student);
     const login = useAuthStore((s) => s.login);
 
     const [loginId, setLoginId] = useState('');
-    const [offers, setOffers] = useState<AggregatedOffer[]>([]);
+    const [loginLoading, setLoginLoading] = useState(false);
+    const [rawOffers, setRawOffers] = useState<AggregatedOffer[]>([]);
+    const [sortBy, setSortBy] = useState<SortByScore | ''>('');
     const [hasScanned, setHasScanned] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -25,17 +34,27 @@ export default function StudentDashboard() {
     const [domain, setDomain] = useState('');
     const [creating, setCreating] = useState(false);
 
+    const offers = sortBy ? sortOffersByScore(rawOffers, sortBy) : rawOffers;
+
     const showToast = (message: string, type: 'success' | 'error') => {
         setToast({ message, type });
         setTimeout(() => setToast(null), 5000);
     };
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!loginId.trim()) return;
-        // We only have the ID, so we store a minimal student object
-        login({ id: loginId.trim(), firstname: '', name: '', domain: '' });
-        showToast('Logged in successfully!', 'success');
+
+        setLoginLoading(true);
+        try {
+            const studentData = await fetchStudent(loginId.trim());
+            login(studentData);
+            showToast(`Welcome back, ${studentData.firstname}!`, 'success');
+        } catch {
+            showToast('Student not found. Check your ID or create an account.', 'error');
+        } finally {
+            setLoginLoading(false);
+        }
     };
 
     const handleCreate = async (e: React.FormEvent) => {
@@ -50,7 +69,7 @@ export default function StudentDashboard() {
             setFirstname('');
             setName('');
             setDomain('');
-            showToast(`Student created & logged in! ID: ${created.id}`, 'success');
+            showToast(`Account created! Your ID: ${created.id}`, 'success');
         } catch (err: any) {
             showToast(err.message, 'error');
         } finally {
@@ -67,10 +86,10 @@ export default function StudentDashboard() {
 
         try {
             const data = await fetchRecommendedOffers(student.id);
-            setOffers(data);
+            setRawOffers(data);
         } catch (err: any) {
             setError(err.message);
-            setOffers([]);
+            setRawOffers([]);
         } finally {
             setLoading(false);
         }
@@ -92,7 +111,7 @@ export default function StudentDashboard() {
         }
     };
 
-    // Not logged in — show login/register form
+    // --- Not logged in ---
     if (!student) {
         return (
             <div>
@@ -111,9 +130,8 @@ export default function StudentDashboard() {
                             style={{ flex: 1, marginBottom: 0 }}
                             autoFocus
                         />
-                        <button type="submit" className="btn" disabled={!loginId.trim()}>
-                            <LogIn size={18} />
-                            Login
+                        <button type="submit" className="btn" disabled={!loginId.trim() || loginLoading}>
+                            {loginLoading ? <div className="loader" /> : <><LogIn size={18} /> Login</>}
                         </button>
                     </form>
 
@@ -132,40 +150,17 @@ export default function StudentDashboard() {
                         <form onSubmit={handleCreate} style={{ marginTop: '1.5rem', textAlign: 'left' }}>
                             <div className="input-group">
                                 <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>First Name</label>
-                                <input
-                                    type="text"
-                                    className="input-field"
-                                    placeholder="Jean"
-                                    value={firstname}
-                                    onChange={(e) => setFirstname(e.target.value)}
-                                />
+                                <input type="text" className="input-field" placeholder="Jean" value={firstname} onChange={(e) => setFirstname(e.target.value)} />
                             </div>
                             <div className="input-group">
                                 <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Last Name</label>
-                                <input
-                                    type="text"
-                                    className="input-field"
-                                    placeholder="Dupont"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                />
+                                <input type="text" className="input-field" placeholder="Dupont" value={name} onChange={(e) => setName(e.target.value)} />
                             </div>
                             <div className="input-group">
                                 <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Domain</label>
-                                <input
-                                    type="text"
-                                    className="input-field"
-                                    placeholder="e.g. Computer Science"
-                                    value={domain}
-                                    onChange={(e) => setDomain(e.target.value)}
-                                />
+                                <input type="text" className="input-field" placeholder="e.g. Computer Science" value={domain} onChange={(e) => setDomain(e.target.value)} />
                             </div>
-                            <button
-                                type="submit"
-                                className="btn btn-success"
-                                disabled={creating || !firstname.trim() || !name.trim() || !domain.trim()}
-                                style={{ width: '100%' }}
-                            >
+                            <button type="submit" className="btn btn-success" disabled={creating || !firstname.trim() || !name.trim() || !domain.trim()} style={{ width: '100%' }}>
                                 {creating ? <div className="loader" /> : 'Create & Login'}
                             </button>
                         </form>
@@ -173,43 +168,61 @@ export default function StudentDashboard() {
                 </div>
 
                 {toast && (
-                    <div className={`toast ${toast.type}`}>
-                        <span>{toast.message}</span>
-                    </div>
+                    <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>
                 )}
             </div>
         );
     }
 
-    // Logged in — show dashboard
+    // --- Logged in ---
     return (
         <div>
-            <div className="glass-panel" style={{ padding: '2rem', maxWidth: '600px', margin: '0 auto 3rem auto', textAlign: 'center' }}>
+            {/* Student Profile Card */}
+            <div className="glass-panel" style={{ padding: '2rem', maxWidth: '600px', margin: '0 auto 2rem auto', textAlign: 'center' }}>
                 <UserCircle size={48} color="var(--primary)" style={{ marginBottom: '1rem' }} />
-                <h2>Welcome{student.firstname ? `, ${student.firstname}` : ''}!</h2>
-                <p style={{ marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                    ID: {student.id}
-                </p>
-                {student.domain && <span className="badge" style={{ marginBottom: '1.5rem', display: 'inline-block' }}>{student.domain}</span>}
-
-                <div style={{ marginTop: '1rem' }}>
-                    <button className="btn" onClick={handleLoadRecommendations} disabled={loading}>
-                        {loading ? <div className="loader" /> : 'Get Recommendations'}
-                    </button>
-                </div>
+                <h2 style={{ marginBottom: '0.25rem' }}>{student.firstname} {student.name}</h2>
+                <p style={{ fontSize: '0.8rem', marginBottom: '0.75rem' }}>ID: <code style={{ fontSize: '0.75rem', background: 'rgba(0,0,0,0.3)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>{student.id}</code></p>
+                {student.domain && <span className="badge">{student.domain}</span>}
             </div>
 
+            {/* Recommendations Controls */}
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'center', marginBottom: '2rem', flexWrap: 'wrap' }}>
+                <button className="btn" onClick={handleLoadRecommendations} disabled={loading}>
+                    {loading ? <div className="loader" /> : 'Get Recommendations'}
+                </button>
+
+                {rawOffers.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <ArrowDownWideNarrow size={16} color="var(--text-muted)" />
+                        <select
+                            className="input-field"
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as SortByScore | '')}
+                            style={{ width: 'auto', marginBottom: 0, padding: '0.5rem 0.75rem', fontSize: '0.875rem' }}
+                        >
+                            {SORT_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+            </div>
+
+            {/* Results */}
             {error ? (
                 <div style={{ color: 'var(--danger)', textAlign: 'center', padding: '2rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-md)' }}>
                     {error}
                 </div>
             ) : hasScanned && !loading && offers.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)', background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)' }}>
-                    No recommendations found. Try checking your domain or exploring all offers.
+                    No recommendations found for your domain.
                 </div>
             ) : offers.length > 0 ? (
                 <div>
-                    <h3 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Recommended for you</h3>
+                    <h3 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>
+                        Recommended for you
+                        {sortBy && <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 400 }}> — sorted by {SORT_OPTIONS.find(o => o.value === sortBy)?.label}</span>}
+                    </h3>
                     <div className="grid-cards">
                         {offers.map((agg) => (
                             <OfferCard
@@ -224,9 +237,7 @@ export default function StudentDashboard() {
             ) : null}
 
             {toast && (
-                <div className={`toast ${toast.type}`}>
-                    <span>{toast.message}</span>
-                </div>
+                <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>
             )}
         </div>
     );
