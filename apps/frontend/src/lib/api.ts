@@ -122,3 +122,58 @@ export function sortOffersByScore(offers: AggregatedOffer[], sortBy: SortByScore
         return scoreB - scoreA;
     });
 }
+
+// --- Notifications (Polytech) ---
+
+export interface Notification {
+    id: string;
+    studentId: string;
+    type: string;
+    offerId: string;
+    message: string;
+    read: boolean;
+}
+
+export async function fetchNotifications(studentId: string): Promise<Notification[]> {
+    const res = await fetch(`${API_BASE}/students/${studentId}/notifications`);
+    if (!res.ok) throw new Error('Failed to fetch notifications');
+    return res.json();
+}
+
+export async function markNotificationRead(notificationId: string): Promise<void> {
+    const res = await fetch(`${API_BASE}/notifications/${notificationId}/read`, { method: 'PUT' });
+    if (!res.ok) throw new Error('Failed to mark notification as read');
+}
+
+// --- Subscriber Preferences (La Poste) ---
+
+const LA_POSTE_BASE = 'http://localhost:8083';
+
+export interface Subscriber {
+    studentId: string;
+    domain: string;
+    channel: 'email' | 'discord';
+    contact: string;
+    enabled: boolean;
+}
+
+export async function fetchSubscriber(studentId: string): Promise<Subscriber> {
+    const res = await fetch(`${LA_POSTE_BASE}/subscribers/${studentId}`);
+    if (!res.ok) throw new Error('Subscriber not found');
+    return res.json();
+}
+
+export async function updateSubscriber(studentId: string, data: Partial<Omit<Subscriber, 'studentId' | 'domain'>>): Promise<Subscriber> {
+    const res = await fetch(`${LA_POSTE_BASE}/subscribers/${studentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update preferences');
+    return res.json();
+}
+
+export async function deleteSubscriber(studentId: string): Promise<void> {
+    const res = await fetch(`${LA_POSTE_BASE}/subscribers/${studentId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to unsubscribe');
+}

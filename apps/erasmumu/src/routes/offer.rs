@@ -33,7 +33,26 @@ pub async fn create_offer(
     };
 
     match state.offer_repo.save(&offer).await {
-        Ok(o) => HttpResponse::Created().json(o),
+        Ok(o) => {
+            // Publish offer.created event
+            if let Some(ref channel) = state.rabbitmq_channel {
+                if let Ok(payload) = serde_json::to_vec(&o) {
+                    let _ = channel
+                        .basic_publish(
+                            "zukmove.events",
+                            "offer.created",
+                            lapin::options::BasicPublishOptions::default(),
+                            &payload,
+                            lapin::BasicProperties::default()
+                                .with_content_type("application/json".into())
+                                .with_delivery_mode(2),
+                        )
+                        .await;
+                    log::info!("Published offer.created event for offer {}", o.id);
+                }
+            }
+            HttpResponse::Created().json(o)
+        }
         Err(e) => domain_error_to_response(e),
     }
 }

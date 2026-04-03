@@ -1,92 +1,97 @@
-mod proto {
-    tonic::include_proto!("mi8");
+use lapin::{BasicProperties, Connection, ConnectionProperties, options::*};
+use serde::Serialize;
+
+#[derive(Serialize)]
+struct NewsEvent {
+    name: String,
+    source: String,
+    date: String,
+    tags: Vec<String>,
+    city: String,
+    country: String,
 }
 
-use proto::mi8_service_client::Mi8ServiceClient;
-use proto::CreateNewsRequest;
-
-/// Données fictives à injecter dans MI8.
-fn sample_news() -> Vec<CreateNewsRequest> {
+fn sample_news() -> Vec<NewsEvent> {
     vec![
-        CreateNewsRequest {
-            name: "Paris launches new metro line".to_string(),
-            source: "Le Monde".to_string(),
-            date: "2026-02-27".to_string(),
-            tags: vec!["innovation".to_string(), "economy".to_string()],
-            city: "Paris".to_string(),
-            country: "France".to_string(),
+        NewsEvent {
+            name: "Paris launches new metro line".into(),
+            source: "Le Monde".into(),
+            date: "2026-02-27".into(),
+            tags: vec!["innovation".into(), "economy".into()],
+            city: "Paris".into(),
+            country: "France".into(),
         },
-        CreateNewsRequest {
-            name: "Berlin startup ecosystem booming".to_string(),
-            source: "TechCrunch".to_string(),
-            date: "2026-02-26".to_string(),
-            tags: vec!["innovation".to_string(), "economy".to_string()],
-            city: "Berlin".to_string(),
-            country: "Germany".to_string(),
+        NewsEvent {
+            name: "Berlin startup ecosystem booming".into(),
+            source: "TechCrunch".into(),
+            date: "2026-02-26".into(),
+            tags: vec!["innovation".into(), "economy".into()],
+            city: "Berlin".into(),
+            country: "Germany".into(),
         },
-        CreateNewsRequest {
-            name: "Barcelona hosts international film festival".to_string(),
-            source: "El País".to_string(),
-            date: "2026-02-25".to_string(),
-            tags: vec!["festival".to_string(), "culture".to_string(), "tourism".to_string()],
-            city: "Barcelona".to_string(),
-            country: "Spain".to_string(),
+        NewsEvent {
+            name: "Barcelona hosts international film festival".into(),
+            source: "El País".into(),
+            date: "2026-02-25".into(),
+            tags: vec!["festival".into(), "culture".into(), "tourism".into()],
+            city: "Barcelona".into(),
+            country: "Spain".into(),
         },
-        CreateNewsRequest {
-            name: "Crime rates decrease in London".to_string(),
-            source: "BBC".to_string(),
-            date: "2026-02-24".to_string(),
-            tags: vec!["crime".to_string(), "politics".to_string()],
-            city: "London".to_string(),
-            country: "UK".to_string(),
+        NewsEvent {
+            name: "Crime rates decrease in London".into(),
+            source: "BBC".into(),
+            date: "2026-02-24".into(),
+            tags: vec!["crime".into(), "politics".into()],
+            city: "London".into(),
+            country: "UK".into(),
         },
-        CreateNewsRequest {
-            name: "Paris air quality improvement plan".to_string(),
-            source: "France24".to_string(),
-            date: "2026-02-23".to_string(),
-            tags: vec!["pollution".to_string(), "health".to_string()],
-            city: "Paris".to_string(),
-            country: "France".to_string(),
+        NewsEvent {
+            name: "Paris air quality improvement plan".into(),
+            source: "France24".into(),
+            date: "2026-02-23".into(),
+            tags: vec!["pollution".into(), "health".into()],
+            city: "Paris".into(),
+            country: "France".into(),
         },
-        CreateNewsRequest {
-            name: "New university campus opens in Berlin".to_string(),
-            source: "DW".to_string(),
-            date: "2026-02-22".to_string(),
-            tags: vec!["education".to_string(), "innovation".to_string()],
-            city: "Berlin".to_string(),
-            country: "Germany".to_string(),
+        NewsEvent {
+            name: "New university campus opens in Berlin".into(),
+            source: "DW".into(),
+            date: "2026-02-22".into(),
+            tags: vec!["education".into(), "innovation".into()],
+            city: "Berlin".into(),
+            country: "Germany".into(),
         },
-        CreateNewsRequest {
-            name: "Barcelona marathon attracts 50,000 runners".to_string(),
-            source: "La Vanguardia".to_string(),
-            date: "2026-02-21".to_string(),
-            tags: vec!["sports".to_string(), "tourism".to_string(), "health".to_string()],
-            city: "Barcelona".to_string(),
-            country: "Spain".to_string(),
+        NewsEvent {
+            name: "Barcelona marathon attracts 50,000 runners".into(),
+            source: "La Vanguardia".into(),
+            date: "2026-02-21".into(),
+            tags: vec!["sports".into(), "tourism".into(), "health".into()],
+            city: "Barcelona".into(),
+            country: "Spain".into(),
         },
-        CreateNewsRequest {
-            name: "London tech week announces keynote speakers".to_string(),
-            source: "The Guardian".to_string(),
-            date: "2026-02-20".to_string(),
-            tags: vec!["innovation".to_string(), "education".to_string(), "economy".to_string()],
-            city: "London".to_string(),
-            country: "UK".to_string(),
+        NewsEvent {
+            name: "London tech week announces keynote speakers".into(),
+            source: "The Guardian".into(),
+            date: "2026-02-20".into(),
+            tags: vec!["innovation".into(), "education".into(), "economy".into()],
+            city: "London".into(),
+            country: "UK".into(),
         },
-        CreateNewsRequest {
-            name: "Paris museum night event".to_string(),
-            source: "Le Figaro".to_string(),
-            date: "2026-02-19".to_string(),
-            tags: vec!["festival".to_string(), "culture".to_string(), "tourism".to_string()],
-            city: "Paris".to_string(),
-            country: "France".to_string(),
+        NewsEvent {
+            name: "Paris museum night event".into(),
+            source: "Le Figaro".into(),
+            date: "2026-02-19".into(),
+            tags: vec!["festival".into(), "culture".into(), "tourism".into()],
+            city: "Paris".into(),
+            country: "France".into(),
         },
-        CreateNewsRequest {
-            name: "Berlin green energy initiative".to_string(),
-            source: "Spiegel".to_string(),
-            date: "2026-02-18".to_string(),
-            tags: vec!["economy".to_string(), "innovation".to_string(), "health".to_string()],
-            city: "Berlin".to_string(),
-            country: "Germany".to_string(),
+        NewsEvent {
+            name: "Berlin green energy initiative".into(),
+            source: "Spiegel".into(),
+            date: "2026-02-18".into(),
+            tags: vec!["economy".into(), "innovation".into(), "health".into()],
+            city: "Berlin".into(),
+            country: "Germany".into(),
         },
     ]
 }
@@ -96,40 +101,56 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv::dotenv().ok();
     env_logger::init();
 
-    let mi8_url =
-        std::env::var("MI8_URL").unwrap_or_else(|_| "http://localhost:50051".to_string());
+    let rabbitmq_url = std::env::var("RABBITMQ_URL")
+        .unwrap_or_else(|_| "amqp://guest:guest@localhost:5672".to_string());
 
-    println!("🗞️  Colporteur — Connecting to MI8 at {}", mi8_url);
+    println!("Colporteur — Connecting to RabbitMQ at {}", rabbitmq_url);
 
-    let mut client = Mi8ServiceClient::connect(mi8_url).await?;
+    let conn = Connection::connect(&rabbitmq_url, ConnectionProperties::default()).await?;
+    let channel = conn.create_channel().await?;
+
+    // Declare exchange
+    channel
+        .exchange_declare(
+            "zukmove.events",
+            lapin::ExchangeKind::Topic,
+            ExchangeDeclareOptions {
+                durable: true,
+                ..Default::default()
+            },
+            Default::default(),
+        )
+        .await?;
 
     let news_items = sample_news();
-    println!("📰 Injecting {} news items...", news_items.len());
+    println!("Injecting {} news items via RabbitMQ...", news_items.len());
 
-    for (i, news) in news_items.into_iter().enumerate() {
-        let city = news.city.clone();
-        let name = news.name.clone();
-        let tags = news.tags.clone();
+    for (i, news) in news_items.iter().enumerate() {
+        let payload = serde_json::to_vec(news)?;
 
-        let response = client
-            .create_news(tonic::Request::new(news))
+        channel
+            .basic_publish(
+                "zukmove.events",
+                "news.created",
+                BasicPublishOptions::default(),
+                &payload,
+                BasicProperties::default()
+                    .with_content_type("application/json".into())
+                    .with_delivery_mode(2), // persistent
+            )
+            .await?
             .await?;
 
-        let created = response.into_inner();
         println!(
-            "  [{}/10] ✅ {} (city: {}, tags: {:?}, id: {})",
+            "  [{}/{}] {} (city: {}, tags: {:?})",
             i + 1,
-            name,
-            city,
-            tags,
-            created.id,
+            news_items.len(),
+            news.name,
+            news.city,
+            news.tags,
         );
     }
 
-    println!("\n🎉 All news injected successfully!");
-    println!("\nYou can now query Polytech:");
-    println!("  curl http://localhost:8080/news?limit=5");
-    println!("  curl http://localhost:8080/news?city=Paris&limit=3");
-
+    println!("\nAll news injected successfully via RabbitMQ!");
     Ok(())
 }

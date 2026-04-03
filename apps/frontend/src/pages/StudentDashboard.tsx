@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { fetchRecommendedOffers, applyForInternship, sortOffersByScore, type AggregatedOffer, type SortByScore, type News } from '@/lib/api';
+import { useState, useEffect } from 'react';
+import { fetchRecommendedOffers, fetchStudent, createStudent, applyForInternship, sortOffersByScore, fetchNotifications, markNotificationRead, type AggregatedOffer, type SortByScore, type Notification } from '@/lib/api';
 import OfferCard from '@/components/OfferCard';
-import { UserCircle, ArrowDownWideNarrow, Bell, BellOff, Newspaper } from 'lucide-react';
+import { UserCircle, UserPlus, LogIn, ArrowDownWideNarrow, Bell, BellOff, Check } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { Navigate } from 'react-router-dom';
 
@@ -46,7 +46,43 @@ export default function StudentDashboard() {
     const [applyingId, setApplyingId] = useState<string | null>(null);
     const [showNotifications, setShowNotifications] = useState(false);
 
+    // Notifications
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [notifLoading, setNotifLoading] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
+
     const offers = sortBy ? sortOffersByScore(rawOffers, sortBy) : rawOffers;
+    const unreadCount = notifications.filter((n) => !n.read).length;
+
+    useEffect(() => {
+        if (student) {
+            loadNotifications();
+        }
+    }, [student?.id]);
+
+    const loadNotifications = async () => {
+        if (!student) return;
+        setNotifLoading(true);
+        try {
+            const data = await fetchNotifications(student.id);
+            setNotifications(data);
+        } catch {
+            // Notifications service may not be available yet
+        } finally {
+            setNotifLoading(false);
+        }
+    };
+
+    const handleMarkRead = async (notifId: string) => {
+        try {
+            await markNotificationRead(notifId);
+            setNotifications((prev) =>
+                prev.map((n) => (n.id === notifId ? { ...n, read: true } : n))
+            );
+        } catch {
+            showToast('Failed to mark notification as read', 'error');
+        }
+    };
 
     // Collect all news as notifications
     const allNews: (News & { offerTitle: string })[] = rawOffers.flatMap((agg) =>
@@ -134,59 +170,73 @@ export default function StudentDashboard() {
                     </div>
                 )}
 
-                {allNews.length > 0 && (
-                    <button
-                        className="btn btn-secondary"
-                        onClick={() => setShowNotifications(!showNotifications)}
-                        style={{ position: 'relative' }}
-                    >
-                        {showNotifications ? <BellOff size={18} /> : <Bell size={18} />}
-                        Alerts
-                        {unseenCount > 0 && (
-                            <span className="notification-badge">{unseenCount}</span>
-                        )}
-                    </button>
-                )}
+                <button
+                    className="btn btn-secondary"
+                    onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications) loadNotifications(); }}
+                    style={{ position: 'relative' }}
+                >
+                    {showNotifications ? <BellOff size={18} /> : <Bell size={18} />}
+                    Alerts
+                    {unreadCount > 0 && (
+                        <span className="notification-badge">{unreadCount}</span>
+                    )}
+                </button>
             </div>
 
-            {/* Notifications Panel */}
-            {showNotifications && allNews.length > 0 && (
+            {/* Notification Panel */}
+            {showNotifications && (
                 <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', maxWidth: '700px', margin: '0 auto 2rem auto' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem' }}>
-                            <Bell size={18} color="var(--primary)" /> Alerts
-                            {unseenCount > 0 && <span className="notification-badge" style={{ position: 'static' }}>{unseenCount} new</span>}
+                            <Bell size={18} color="var(--primary)" /> Notifications
+                            {unreadCount > 0 && <span className="notification-badge" style={{ position: 'static' }}>{unreadCount} new</span>}
                         </h3>
-                        {unseenCount > 0 && (
-                            <button className="btn btn-secondary" onClick={handleMarkAllRead} style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
-                                Mark all read
-                            </button>
-                        )}
+                        <button className="btn btn-secondary" onClick={loadNotifications} style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
+                            Refresh
+                        </button>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '300px', overflowY: 'auto' }}>
-                        {allNews.map((news) => {
-                            const isNew = !seenNewsIds.includes(news.id);
-                            return (
+
+                    {notifLoading ? (
+                        <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+                            <div className="loader" />
+                        </div>
+                    ) : notifications.length === 0 ? (
+                        <p style={{ textAlign: 'center', fontSize: '0.875rem', padding: '1rem' }}>No notifications yet.</p>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '350px', overflowY: 'auto' }}>
+                            {notifications.map((notif) => (
                                 <div
-                                    key={news.id}
+                                    key={notif.id}
                                     style={{
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                         padding: '0.75rem 1rem',
-                                        background: isNew ? 'rgba(99,102,241,0.1)' : 'rgba(0,0,0,0.15)',
+                                        background: notif.read ? 'rgba(0,0,0,0.15)' : 'rgba(99,102,241,0.1)',
                                         borderRadius: 'var(--radius-sm)',
-                                        borderLeft: isNew ? '3px solid var(--primary)' : '3px solid transparent',
+                                        borderLeft: notif.read ? '3px solid transparent' : '3px solid var(--primary)',
                                     }}
                                 >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-main)' }}>
-                                        <Newspaper size={14} color="var(--primary)" />
-                                        {news.name}
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: '0.85rem', fontWeight: notif.read ? 400 : 600, color: 'var(--text-main)' }}>
+                                            {notif.message}
+                                        </div>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                                            {notif.type === 'new_offer' ? 'New Offer' : notif.type}
+                                        </div>
                                     </div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                                        {news.source} — {news.date} — Related to: {news.offerTitle}
-                                    </div>
+                                    {!notif.read && (
+                                        <button
+                                            onClick={() => handleMarkRead(notif.id)}
+                                            className="btn btn-secondary"
+                                            style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', marginLeft: '0.75rem' }}
+                                            title="Mark as read"
+                                        >
+                                            <Check size={14} />
+                                        </button>
+                                    )}
                                 </div>
-                            );
-                        })}
-                    </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 

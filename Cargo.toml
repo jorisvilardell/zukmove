@@ -6,6 +6,7 @@ members = [
     "apps/erasmumu",
     "apps/mi8",
     "apps/colporteur",
+    "apps/laposte",
 ]
 
 [workspace.package]

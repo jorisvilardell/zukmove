@@ -24,7 +24,16 @@ services:
     volumes:
       - redisdata:/data
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmqdata:/data
+
 volumes:
   pgdata:
   mongodata:
   redisdata:
+  rabbitmqdata:

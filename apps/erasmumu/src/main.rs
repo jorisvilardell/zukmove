@@ -16,6 +16,7 @@ use zukmove_core::domain::ports::OfferRepository;
 
 pub struct AppState {
     pub offer_repo: Box<dyn OfferRepository>,
+    pub rabbitmq_channel: Option<lapin::Channel>,
 }
 
 #[derive(OpenApi)]
@@ -39,7 +40,7 @@ struct ApiDoc;
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
-    env_logger::init();
+    tracing_subscriber::fmt::init();
 
     let mongo_url =
         std::env::var("MONGO_URL").unwrap_or_else(|_| "mongodb://localhost:27017".to_string());
@@ -51,6 +52,9 @@ async fn main() -> std::io::Result<()> {
         .parse()
         .expect("PORT must be a number");
 
+    let rabbitmq_url = std::env::var("RABBITMQ_URL")
+        .unwrap_or_else(|_| "amqp://guest:guest@localhost:5672".to_string());
+
     // Connect to MongoDB
     let client = Client::with_uri_str(&mongo_url)
         .await
@@ -60,8 +64,40 @@ async fn main() -> std::io::Result<()> {
 
     let offer_repo = MongoOfferRepository::new(&client, &mongo_db);
 
+    // Connect to RabbitMQ
+    let rabbitmq_channel = match lapin::Connection::connect(
+        &rabbitmq_url,
+        lapin::ConnectionProperties::default(),
+    )
+    .await
+    {
+        Ok(conn) => {
+            let channel = conn.create_channel().await.ok();
+            if let Some(ref ch) = channel {
+                let _ = ch
+                    .exchange_declare(
+                        "zukmove.events",
+                        lapin::ExchangeKind::Topic,
+                        lapin::options::ExchangeDeclareOptions {
+                            durable: true,
+                            ..Default::default()
+                        },
+                        Default::default(),
+                    )
+                    .await;
+            }
+            log::info!("Connected to RabbitMQ");
+            channel
+        }
+        Err(e) => {
+            log::warn!("Failed to connect to RabbitMQ: {} — continuing without events", e);
+            None
+        }
+    };
+
     let state = web::Data::new(AppState {
         offer_repo: Box::new(offer_repo),
+        rabbitmq_channel,
     });
 
     log::info!(

@@ -4,6 +4,7 @@ use uuid::Uuid;
 use super::entities::city_score::CityScore;
 use super::entities::internship::Internship;
 use super::entities::news::News;
+use super::entities::notification::Notification;
 use super::entities::offer::Offer;
 use super::entities::student::Student;
 
@@ -93,4 +94,13 @@ pub trait CityScoreRepository: Send + Sync {
     async fn get_or_create(&self, city: &str, country: &str) -> Result<CityScore, DomainError>;
     async fn save(&self, score: &CityScore) -> Result<CityScore, DomainError>;
     async fn get_top_cities(&self, limit: usize) -> Result<Vec<CityScore>, DomainError>;
+}
+
+// ─── Notification Repository (Port) ───
+
+#[async_trait]
+pub trait NotificationRepository: Send + Sync {
+    async fn save(&self, notification: &Notification) -> Result<Notification, DomainError>;
+    async fn find_by_student_id(&self, student_id: Uuid) -> Result<Vec<Notification>, DomainError>;
+    async fn mark_as_read(&self, id: Uuid) -> Result<(), DomainError>;
 }
