@@ -37,6 +37,8 @@ pub struct AppState {
     pub internship_service: InternshipService,
     pub notification_repo: Box<dyn NotificationRepository>,
     pub rabbitmq_channel: Option<lapin::Channel>,
+    #[allow(dead_code)]
+    rabbitmq_conn: Option<lapin::Connection>,
 }
 
 #[derive(OpenApi)]
@@ -169,7 +171,7 @@ async fn main() -> std::io::Result<()> {
     );
 
     // Connect to RabbitMQ
-    let rabbitmq_channel = match lapin::Connection::connect(
+    let (rabbitmq_conn, rabbitmq_channel) = match lapin::Connection::connect(
         &rabbitmq_url,
         lapin::ConnectionProperties::default(),
     )
@@ -192,7 +194,7 @@ async fn main() -> std::io::Result<()> {
             }
             log::info!("Connected to RabbitMQ");
 
-            // Start offer.created consumer
+            // Start offer.created consumer (uses its own connection)
             let consumer_rabbitmq_url = rabbitmq_url.clone();
             let consumer_pool = pool.clone();
             tokio::spawn(async move {
@@ -216,14 +218,14 @@ async fn main() -> std::io::Result<()> {
                 }
             });
 
-            channel
+            (Some(conn), channel)
         }
         Err(e) => {
             log::warn!(
                 "Failed to connect to RabbitMQ: {} — continuing without events",
                 e
             );
-            None
+            (None, None)
         }
     };
 
@@ -232,6 +234,7 @@ async fn main() -> std::io::Result<()> {
         internship_service,
         notification_repo: Box::new(notification_repo),
         rabbitmq_channel,
+        rabbitmq_conn,
     });
 
     log::info!(

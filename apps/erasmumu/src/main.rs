@@ -17,6 +17,8 @@ use zukmove_core::domain::ports::OfferRepository;
 pub struct AppState {
     pub offer_repo: Box<dyn OfferRepository>,
     pub rabbitmq_channel: Option<lapin::Channel>,
+    #[allow(dead_code)]
+    rabbitmq_conn: Option<lapin::Connection>,
 }
 
 #[derive(OpenApi)]
@@ -65,7 +67,7 @@ async fn main() -> std::io::Result<()> {
     let offer_repo = MongoOfferRepository::new(&client, &mongo_db);
 
     // Connect to RabbitMQ
-    let rabbitmq_channel = match lapin::Connection::connect(
+    let (rabbitmq_conn, rabbitmq_channel) = match lapin::Connection::connect(
         &rabbitmq_url,
         lapin::ConnectionProperties::default(),
     )
@@ -87,17 +89,18 @@ async fn main() -> std::io::Result<()> {
                     .await;
             }
             log::info!("Connected to RabbitMQ");
-            channel
+            (Some(conn), channel)
         }
         Err(e) => {
             log::warn!("Failed to connect to RabbitMQ: {} — continuing without events", e);
-            None
+            (None, None)
         }
     };
 
     let state = web::Data::new(AppState {
         offer_repo: Box::new(offer_repo),
         rabbitmq_channel,
+        rabbitmq_conn,
     });
 
     log::info!(
