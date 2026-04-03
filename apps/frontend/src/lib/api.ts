@@ -1,10 +1,13 @@
 export interface Offer {
     id: string;
-    name: string;
-    company: string;
+    title: string;
+    link: string;
     city: string;
     domain: string;
-    url: string;
+    salary: number;
+    start_date: string;
+    end_date: string;
+    available: boolean;
 }
 
 export interface CityScore {
@@ -56,14 +59,14 @@ export interface Internship {
 
 const API_BASE = 'http://localhost:8080';
 
-export async function fetchOffers(domain?: string, city?: string): Promise<AggregatedOffer[]> {
-    const params = new URLSearchParams();
-    if (domain) params.append('domain', domain);
-    if (city) params.append('city', city);
+export async function fetchOffers(params?: { domain?: string; city?: string; limit?: number }): Promise<AggregatedOffer[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.domain) searchParams.append('domain', params.domain);
+    if (params?.city) searchParams.append('city', params.city);
+    if (params?.limit) searchParams.append('limit', String(params.limit));
 
-    const url = `${API_BASE}/offer${params.toString() ? '?' + params.toString() : ''}`;
-
-    const res = await fetch(url);
+    const qs = searchParams.toString();
+    const res = await fetch(`${API_BASE}/offer${qs ? '?' + qs : ''}`);
     if (!res.ok) throw new Error('Failed to fetch offers');
     return res.json();
 }
@@ -71,6 +74,12 @@ export async function fetchOffers(domain?: string, city?: string): Promise<Aggre
 export async function fetchStudent(id: string): Promise<Student> {
     const res = await fetch(`${API_BASE}/student/${id}`);
     if (!res.ok) throw new Error('Student not found');
+    return res.json();
+}
+
+export async function fetchStudentsByDomain(domain: string): Promise<Student[]> {
+    const res = await fetch(`${API_BASE}/student?domain=${encodeURIComponent(domain)}`);
+    if (!res.ok) throw new Error('Failed to fetch students');
     return res.json();
 }
 

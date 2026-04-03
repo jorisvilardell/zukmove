@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { type AggregatedOffer } from '@/lib/api';
 import CityScoreBars from '@/components/CityScoreBars';
-import { Building2, MapPin, Briefcase, ExternalLink, Activity, Newspaper, ChevronDown, ChevronUp, Tag } from 'lucide-react';
+import { MapPin, Briefcase, ExternalLink, Activity, Newspaper, ChevronDown, ChevronUp, Tag, Calendar, DollarSign } from 'lucide-react';
 
 interface OfferCardProps {
     data: AggregatedOffer;
@@ -12,6 +12,14 @@ interface OfferCardProps {
 function calculateAverageScore(score: any) {
     if (!score) return null;
     return (score.quality_of_life + score.safety + score.economy + score.culture) / 4;
+}
+
+function formatDate(dateStr: string) {
+    return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatSalary(salary: number) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(salary);
 }
 
 export default function OfferCard({ data, onApply, isApplying }: OfferCardProps) {
@@ -26,19 +34,39 @@ export default function OfferCard({ data, onApply, isApplying }: OfferCardProps)
 
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
+                <div style={{ flex: 1 }}>
                     <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#fff', marginBottom: '0.25rem' }}>
-                        {offer.name}
+                        {offer.title}
                     </h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                        <Building2 size={14} />
-                        <span>{offer.company}</span>
-                        <span style={{ color: 'var(--glass-border)' }}>•</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.875rem', flexWrap: 'wrap' }}>
                         <MapPin size={14} />
                         <span>{offer.city}</span>
+                        {city_score?.country && (
+                            <>
+                                <span style={{ color: 'var(--glass-border)' }}>,</span>
+                                <span>{city_score.country}</span>
+                            </>
+                        )}
                     </div>
                 </div>
-                <span className="badge">{offer.domain}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.35rem' }}>
+                    <span className="badge">{offer.domain}</span>
+                    {!offer.available && (
+                        <span className="badge" style={{ background: 'rgba(239,68,68,0.15)', color: '#fca5a5', borderColor: 'rgba(239,68,68,0.3)' }}>Closed</span>
+                    )}
+                </div>
+            </div>
+
+            {/* Details row */}
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <DollarSign size={14} color="var(--success)" />
+                    {formatSalary(offer.salary)}
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <Calendar size={14} />
+                    {formatDate(offer.start_date)} — {formatDate(offer.end_date)}
+                </span>
             </div>
 
             {/* City Scores */}
@@ -112,7 +140,7 @@ export default function OfferCard({ data, onApply, isApplying }: OfferCardProps)
             {/* Actions */}
             <div style={{ marginTop: 'auto', display: 'flex', gap: '0.75rem', paddingTop: '0.5rem' }}>
                 <a
-                    href={offer.url}
+                    href={offer.link}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-secondary"
@@ -124,7 +152,7 @@ export default function OfferCard({ data, onApply, isApplying }: OfferCardProps)
                 {onApply && (
                     <button
                         onClick={() => onApply(offer.id)}
-                        disabled={isApplying}
+                        disabled={isApplying || !offer.available}
                         className="btn"
                         style={{ flex: 1 }}
                     >
